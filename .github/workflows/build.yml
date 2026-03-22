@@ -6,10 +6,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # 强制 Node.js 24 运行 JS Action
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -29,9 +31,8 @@ jobs:
       - name: Configure build
         run: |
           cd source
-          # 使用 MT7981 默认配置
           cp configs/mt7981_defconfig .config
-          # 添加必要软件包
+          # 必装软件包
           echo "CONFIG_PACKAGE_luci=y" >> .config
           echo "CONFIG_PACKAGE_luci-ssl=y" >> .config
           echo "CONFIG_PACKAGE_adguardhome=y" >> .config
