@@ -1,14 +1,13 @@
-name: Build NX30 Pro Firmware with Proxy
+name: Build NX30 Pro Firmware Debug
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  clone_and_feeds:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -18,9 +17,9 @@ jobs:
           sudo apt update
           sudo apt install -y git build-essential subversion libncurses5-dev zlib1g-dev gawk flex quilt libssl-dev xsltproc wget unzip python3-distutils
 
-      - name: Clone ImmortalWrt source via ghproxy
+      - name: Clone ImmortalWrt source (verbose)
         run: |
-          git clone -b mt7981 https://ghproxy.com/https://github.com/immortalwrt/immortalwrt.git source
+          git clone -v -b mt7981 https://ghproxy.com/https://github.com/immortalwrt/immortalwrt.git source
 
       - name: Update feeds via ghproxy
         run: |
@@ -29,16 +28,30 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+      - name: Save clone + feeds artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-artifact
+          path: source
+
+  build_firmware:
+    runs-on: ubuntu-latest
+    needs: clone_and_feeds
+    steps:
+      - name: Download source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: source-artifact
+          path: source
+
       - name: Configure base firmware
         run: |
           cd source
           cp configs/mt7981_defconfig .config
-          # 核心软件包
           echo "CONFIG_PACKAGE_luci=y" >> .config
           echo "CONFIG_PACKAGE_luci-ssl=y" >> .config
           echo "CONFIG_PACKAGE_firewall4=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-          # 删除不需要的软件包
           echo "CONFIG_PACKAGE_ppp=n" >> .config
           echo "CONFIG_PACKAGE_pppoe=n" >> .config
           echo "CONFIG_PACKAGE_ipv6=n" >> .config
