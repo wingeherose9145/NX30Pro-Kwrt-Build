@@ -1,4 +1,4 @@
-name: Build NX30 Pro Base Firmware
+name: Build NX30 Pro Firmware with Proxy
 
 on:
   workflow_dispatch:
@@ -18,13 +18,14 @@ jobs:
           sudo apt update
           sudo apt install -y git build-essential subversion libncurses5-dev zlib1g-dev gawk flex quilt libssl-dev xsltproc wget unzip python3-distutils
 
-      - name: Clone ImmortalWrt source (with proxy)
+      - name: Clone ImmortalWrt source via ghproxy
         run: |
           git clone -b mt7981 https://ghproxy.com/https://github.com/immortalwrt/immortalwrt.git source
 
-      - name: Update feeds
+      - name: Update feeds via ghproxy
         run: |
           cd source
+          sed -i 's#https://downloads.openwrt.org#https://ghproxy.com/https://downloads.openwrt.org#g' feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
@@ -37,7 +38,7 @@ jobs:
           echo "CONFIG_PACKAGE_luci-ssl=y" >> .config
           echo "CONFIG_PACKAGE_firewall4=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-          # 删除不必要的软件包
+          # 删除不需要的软件包
           echo "CONFIG_PACKAGE_ppp=n" >> .config
           echo "CONFIG_PACKAGE_pppoe=n" >> .config
           echo "CONFIG_PACKAGE_ipv6=n" >> .config
