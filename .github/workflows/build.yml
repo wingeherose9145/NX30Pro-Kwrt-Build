@@ -1,4 +1,4 @@
-name: Build NX30 Pro Custom Firmware
+name: Build NX30 Pro Base Firmware
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # 强制 Node.js 24 运行 JS Action
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repository
@@ -18,9 +18,9 @@ jobs:
           sudo apt update
           sudo apt install -y git build-essential subversion libncurses5-dev zlib1g-dev gawk flex quilt libssl-dev xsltproc wget unzip python3-distutils
 
-      - name: Clone ImmortalWrt source
+      - name: Clone ImmortalWrt source (with proxy)
         run: |
-          git clone -b mt7981 https://github.com/immortalwrt/immortalwrt.git source
+          git clone -b mt7981 https://ghproxy.com/https://github.com/immortalwrt/immortalwrt.git source
 
       - name: Update feeds
         run: |
@@ -28,32 +28,19 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Configure build
+      - name: Configure base firmware
         run: |
           cd source
           cp configs/mt7981_defconfig .config
-          # 必装软件包
+          # 核心软件包
           echo "CONFIG_PACKAGE_luci=y" >> .config
           echo "CONFIG_PACKAGE_luci-ssl=y" >> .config
-          echo "CONFIG_PACKAGE_adguardhome=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
-          echo "CONFIG_PACKAGE_passwall=y" >> .config
-          echo "CONFIG_PACKAGE_sing-box=y" >> .config
-          echo "CONFIG_PACKAGE_https-dns-proxy=y" >> .config
-          echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
-          echo "CONFIG_PACKAGE_ca-certificates=y" >> .config
           echo "CONFIG_PACKAGE_firewall4=y" >> .config
           echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-          # 删除不需要的包，瘦身隐私优化
+          # 删除不必要的软件包
           echo "CONFIG_PACKAGE_ppp=n" >> .config
           echo "CONFIG_PACKAGE_pppoe=n" >> .config
           echo "CONFIG_PACKAGE_ipv6=n" >> .config
-          echo "CONFIG_PACKAGE_odhcpd-ipv6only=n" >> .config
-          echo "CONFIG_PACKAGE_samba4=n" >> .config
-          echo "CONFIG_PACKAGE_kmod-usb-core=n" >> .config
-          echo "CONFIG_PACKAGE_luci-app-upnp=n" >> .config
-          echo "CONFIG_PACKAGE_luci-app-ddns=n" >> .config
-          echo "CONFIG_PACKAGE_luci-app-statistics=n" >> .config
           make defconfig
 
       - name: Build firmware
@@ -64,5 +51,5 @@ jobs:
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: nx30pro-firmware
+          name: nx30pro-base-firmware
           path: source/bin/targets/mediatek/mt7981/*.bin
