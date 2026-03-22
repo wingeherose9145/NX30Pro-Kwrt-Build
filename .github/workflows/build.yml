@@ -1,44 +1,67 @@
-name: Build NX30 Pro
+name: Build NX30 Pro Custom Firmware
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4 # 這裡更新到了 v4，解決報錯
+    runs-on: ubuntu-latest
 
-      - name: Install Environment
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
         run: |
-          sudo -E apt-get -qq update
-          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev swig libpython3-dev ecj fastjar
-          
-      - name: Clone Source
+          sudo apt update
+          sudo apt install -y git build-essential subversion libncurses5-dev zlib1g-dev gawk flex quilt libssl-dev xsltproc wget unzip python3-distutils
+
+      - name: Clone ImmortalWrt source
         run: |
-          git clone --depth 1 https://github.com/hanwckf/immortalwrt-mt798x openwrt
-          cd openwrt
+          git clone -b mt7981 https://github.com/immortalwrt/immortalwrt.git source
+
+      - name: Update feeds
+        run: |
+          cd source
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Config for NX30 Pro
+      - name: Configure build
         run: |
-          cd openwrt
-          # 下面是針對 NX30 Pro 的專屬配置
-          echo "CONFIG_TARGET_mediatek=y" > .config
-          echo "CONFIG_TARGET_mediatek_mt7981=y" >> .config
-          echo "CONFIG_TARGET_mediatek_mt7981_DEVICE_h3c_magic-nx30-pro=y" >> .config
+          cd source
+          # 使用 MT7981 默认配置
+          cp configs/mt7981_defconfig .config
+          # 添加必要软件包
+          echo "CONFIG_PACKAGE_luci=y" >> .config
+          echo "CONFIG_PACKAGE_luci-ssl=y" >> .config
+          echo "CONFIG_PACKAGE_adguardhome=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-passwall=y" >> .config
+          echo "CONFIG_PACKAGE_passwall=y" >> .config
+          echo "CONFIG_PACKAGE_sing-box=y" >> .config
+          echo "CONFIG_PACKAGE_https-dns-proxy=y" >> .config
+          echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
+          echo "CONFIG_PACKAGE_ca-certificates=y" >> .config
+          echo "CONFIG_PACKAGE_firewall4=y" >> .config
+          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+          # 删除不需要的包，瘦身隐私优化
+          echo "CONFIG_PACKAGE_ppp=n" >> .config
+          echo "CONFIG_PACKAGE_pppoe=n" >> .config
+          echo "CONFIG_PACKAGE_ipv6=n" >> .config
+          echo "CONFIG_PACKAGE_odhcpd-ipv6only=n" >> .config
+          echo "CONFIG_PACKAGE_samba4=n" >> .config
+          echo "CONFIG_PACKAGE_kmod-usb-core=n" >> .config
+          echo "CONFIG_PACKAGE_luci-app-upnp=n" >> .config
+          echo "CONFIG_PACKAGE_luci-app-ddns=n" >> .config
+          echo "CONFIG_PACKAGE_luci-app-statistics=n" >> .config
           make defconfig
 
-      - name: Compile
+      - name: Build firmware
         run: |
-          cd openwrt
-          # 這裡使用單線程 V=s，出錯時方便查看具體日誌
-          make -j$(nproc) || make -j1 V=s
+          cd source
+          make -j$(nproc) V=s
 
-      - name: Upload
-        uses: actions/upload-artifact@v4 # 這裡也更新到了 v4
+      - name: Upload firmware
+        uses: actions/upload-artifact@v3
         with:
-          name: NX30-Pro-Firmware
-          path: openwrt/bin/targets/mediatek/mt7981/*.bin
+          name: nx30pro-firmware
+          path: source/bin/targets/mediatek/mt7981/*.bin
